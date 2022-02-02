@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Об авторе проекта{% endblock %}
+{% block content %}
+{% load static %}
+{% load thumbnail %}
+<div class="container">
+  <h1>Привет, я автор этого проекта=)<br>Также я студент яндекс практикума!</h1>
+  <h3><a href="https://praktikum.yandex.ru/profile/backend-developer/">Ссылка на курс</a></h3>
+  <p>Данный проект разрабатывается в процессе обучения </p>
+</div>
+<div class="container">
+  <div class="row">
+    <div class="col-12">
+      <p>
+        Здесь показано рабочее место на котором происходит обучение 
+      </p>
+    </div>
+    <div class="col-12">
+      <p>
+        <img src="{% static 'img/about/table.png' %}">
+      </p> 
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-12">
+      <p>
+        <i>Здесь показан особо важный элемент обучения</i> 
+      </p>
+    </div>
+    <div class="col-12">
+      <p>
+        <img src="{% static 'img/about/cof.png' %}">
+      </p> 
+    </div>
+  </div>
+</div>
+{% endblock %} 
