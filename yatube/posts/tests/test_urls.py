@@ -1,7 +1,13 @@
+from django.urls import reverse
 from django.test import TestCase, Client
 from http import HTTPStatus
 
 from ..models import Post, Group, User
+
+TITLE_FOR_TEST = 'Тестовая группа'
+SLUG_FOR_TEST = 'test_slug'
+DESCRIPTION_FOR_TEST = 'Тестовое описание'
+TEXT_FOR_TEST = 'Тестовый текст'
 
 
 class PostURLTests(TestCase):
@@ -10,15 +16,51 @@ class PostURLTests(TestCase):
         super().setUpClass()
         cls.USER = User.objects.create_user(username='test_author')
         cls.GROUP = Group.objects.create(
-            title='Тестовая группа',
-            slug='test_slug',
-            description='Тестовое описание',
+            title=TITLE_FOR_TEST,
+            slug=SLUG_FOR_TEST,
+            description=DESCRIPTION_FOR_TEST,
         )
         cls.POST = Post.objects.create(
-            text='Тестовый текст',
+            text=TEXT_FOR_TEST,
             author=cls.USER,
             group=cls.GROUP,
         )
+        cls.KWARGS_FOR_EDIT = {'post_id': f'{cls.POST.pk}'}
+        cls.REVERSE_STRING_FOR_EDIT = (
+            f"{reverse('users:login')}?next="
+            + f"{reverse('posts:post_edit', kwargs=cls.KWARGS_FOR_EDIT)}"
+        )
+        cls.URLS_PAGES = [
+            reverse('posts:main_page'),
+            reverse('posts:group_list', kwargs={'slug': f'{cls.GROUP.slug}'}),
+            reverse(
+                'posts:profile',
+                kwargs={'username': f'{cls.USER.username}'}
+            ),
+            reverse('posts:post_detail', kwargs={'post_id': f'{cls.POST.pk}'}),
+        ]
+        cls.TEMPLATES_COLLECTION = {
+            reverse('posts:main_page'): 'posts/index.html',
+            reverse(
+                'posts:group_list',
+                kwargs={'slug': f'{cls.GROUP.slug}'}
+            ): 'posts/group_list.html',
+            reverse(
+                'posts:profile',
+                kwargs={'username': f'{cls.USER.username}'}
+            ): 'posts/profile.html',
+            reverse(
+                'posts:post_detail',
+                kwargs={'post_id': f'{cls.POST.pk}'}
+            ): 'posts/post_detail.html',
+            reverse(
+                'posts:post_create',
+            ): 'posts/create_post.html',
+            reverse(
+                'posts:post_edit',
+                kwargs={'post_id': f'{cls.POST.pk}'}
+            ): 'posts/create_post.html',
+        }
 
     def setUp(self):
         self.guest_client = Client()
@@ -33,16 +75,7 @@ class PostURLTests(TestCase):
         )
 
     def test_url_for_guest(self):
-        group = self.GROUP
-        post = self.POST
-        user = self.USER
-        urls_pages = [
-            '/',
-            f'/group/{group.slug}/',
-            f'/profile/{user.username}/',
-            f'/posts/{post.pk}/',
-        ]
-        for url in urls_pages:
+        for url in self.URLS_PAGES:
             with self.subTest(url=url):
                 response = self.guest_client.get(url)
                 self.assertEqual(
@@ -50,12 +83,12 @@ class PostURLTests(TestCase):
         response1 = self.guest_client.get('/create/')
         self.assertRedirects(
             response1,
-            '/auth/login/?next=/create/'
+            f"{reverse('users:login')}?next={reverse('posts:post_create')}"
         )
-        response1 = self.guest_client.get(f'/posts/{post.pk}/edit/')
+        response1 = self.guest_client.get(f'/posts/{self.POST.pk}/edit/')
         self.assertRedirects(
             response1,
-            '/auth/login/?next=/posts/1/edit/'
+            self.REVERSE_STRING_FOR_EDIT
         )
 
     def test_for_autorizied(self):
@@ -68,7 +101,7 @@ class PostURLTests(TestCase):
         response1 = self.guest_client.get(f'/posts/{post.pk}/edit/')
         self.assertRedirects(
             response1,
-            '/auth/login/?next=/posts/1/edit/'
+            self.REVERSE_STRING_FOR_EDIT
         )
 
     def test_for_author(self):
@@ -85,18 +118,7 @@ class PostURLTests(TestCase):
         self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
 
     def test_tempates(self):
-        group = self.GROUP
-        post = self.POST
-        user = self.USER
-        templates_collection = {
-            '/': 'posts/index.html',
-            f'/group/{group.slug}/': 'posts/group_list.html',
-            f'/profile/{user.username}/': 'posts/profile.html',
-            f'/posts/{post.pk}/': 'posts/post_detail.html',
-            f'/posts/{post.pk}/edit/': 'posts/create_post.html',
-            '/create/': 'posts/create_post.html',
-        }
-        for address, template in templates_collection.items():
+        for address, template in self.TEMPLATES_COLLECTION.items():
             with self.subTest(address=address):
                 response = self.authorized_test_author.get(address)
                 self.assertTemplateUsed(response, template)

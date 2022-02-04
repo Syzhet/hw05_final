@@ -4,6 +4,11 @@ from django.core.cache import cache
 
 from ..models import Post, Group, User
 
+TITLE_FOR_TEST = 'Тестовая группа'
+SLUG_FOR_TEST = 'test_slug'
+DESCRIPTION_FOR_TEST = 'Тестовое описание'
+TEXT_FOR_TEST = 'Тестовый текст'
+
 
 class CacheTests(TestCase):
     @classmethod
@@ -11,12 +16,12 @@ class CacheTests(TestCase):
         super().setUpClass()
         cls.USER = User.objects.create_user(username='test_author')
         cls.GROUP = Group.objects.create(
-            title='Тестовая группа',
-            slug='test_slug',
-            description='Тестовое описание',
+            title=TITLE_FOR_TEST,
+            slug=SLUG_FOR_TEST,
+            description=DESCRIPTION_FOR_TEST,
         )
         cls.POST = Post.objects.create(
-            text='Тестовый текст',
+            text=TEXT_FOR_TEST,
             author=cls.USER,
             group=cls.GROUP,
         )

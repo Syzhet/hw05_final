@@ -1,8 +1,20 @@
-from django.test import TestCase, Client
+import shutil
+import tempfile
+
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from django import forms
+from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.cache import cache
 
 from ..models import Follow, Post, Group, User
+
+TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
+TITLE_FOR_TEST = 'Тестовая группа'
+SLUG_FOR_TEST = 'test_slug'
+DESCRIPTION_FOR_TEST = 'Тестовое описание'
+TEXT_FOR_TEST = 'Тестовый текст'
 
 
 class TaskPagesTests(TestCase):
@@ -11,42 +23,39 @@ class TaskPagesTests(TestCase):
         super().setUpClass()
         cls.USER = User.objects.create_user(username='test_author')
         cls.GROUP = Group.objects.create(
-            title='Тестовая группа',
-            slug='test_slug',
-            description='Тестовое описание',
+            title=TITLE_FOR_TEST,
+            slug=SLUG_FOR_TEST,
+            description=DESCRIPTION_FOR_TEST,
         )
         cls.POST = Post.objects.create(
-            text='Тестовый текст',
+            text=TEXT_FOR_TEST,
             author=cls.USER,
             group=cls.GROUP,
         )
+        cls.TEMPLATES_PAGES_NAMES = {
+            reverse('posts:main_page'): 'posts/index.html',
+            reverse(
+                'posts:group_list',
+                kwargs={'slug': f'{cls.GROUP.slug}'}
+            ): 'posts/group_list.html',
+            reverse(
+                'posts:profile',
+                kwargs={'username': f'{cls.USER.username}'}
+            ): 'posts/profile.html',
+            reverse(
+                'posts:post_detail',
+                kwargs={'post_id': f'{cls.POST.pk}'}
+            ): 'posts/post_detail.html',
+            reverse('posts:post_create'): 'posts/create_post.html',
+            reverse('posts:post_create'): 'posts/create_post.html',
+        }
 
     def setUp(self):
         self.authorized_test_author = Client()
         self.authorized_test_author.force_login(self.USER)
 
     def test_pages_uses_correct_template(self):
-        group = self.GROUP
-        post = self.POST
-        user = self.USER
-        templates_pages_names = {
-            reverse('posts:main_page'): 'posts/index.html',
-            reverse(
-                'posts:group_list',
-                kwargs={'slug': f'{group.slug}'}
-            ): 'posts/group_list.html',
-            reverse(
-                'posts:profile',
-                kwargs={'username': f'{user.username}'}
-            ): 'posts/profile.html',
-            reverse(
-                'posts:post_detail',
-                kwargs={'post_id': f'{post.pk}'}
-            ): 'posts/post_detail.html',
-            reverse('posts:post_create'): 'posts/create_post.html',
-            reverse('posts:post_create'): 'posts/create_post.html',
-        }
-        for reverse_name, template in templates_pages_names.items():
+        for reverse_name, template in self.TEMPLATES_PAGES_NAMES.items():
             with self.subTest(reverse_name=reverse_name):
                 response = self.authorized_test_author.get(reverse_name)
                 self.assertTemplateUsed(response, template)
@@ -62,36 +71,34 @@ class PaginatorTests(TestCase):
         super().setUpClass()
         cls.USER = User.objects.create_user(username='test1_author')
         cls.GROUP = Group.objects.create(
-            title='Тестовая группа',
-            slug='test_slug',
-            description='Тестовое описание',
+            title=TITLE_FOR_TEST,
+            slug=SLUG_FOR_TEST,
+            description=DESCRIPTION_FOR_TEST,
         )
         for i in range(PaginatorTests.SUM_POSTS):
             cls.POST = Post.objects.create(
-                text=f'Тестовый текст {i}',
+                text=f'{TEXT_FOR_TEST} {i}',
                 author=cls.USER,
                 group=cls.GROUP,
             )
+        cls.TEMPLATES_PAGES_NAMES = [
+            reverse('posts:main_page'),
+            reverse(
+                'posts:group_list',
+                kwargs={'slug': f'{cls.GROUP.slug}'}
+            ),
+            reverse(
+                'posts:profile',
+                kwargs={'username': f'{cls.USER.username}'}
+            ),
+        ]
 
     def setUp(self):
         self.authorized_test_author = Client()
         self.authorized_test_author.force_login(self.USER)
-        group = self.GROUP
-        user = self.USER
-        self.templates_pages_names = [
-            reverse('posts:main_page'),
-            reverse(
-                'posts:group_list',
-                kwargs={'slug': f'{group.slug}'}
-            ),
-            reverse(
-                'posts:profile',
-                kwargs={'username': f'{user.username}'}
-            ),
-        ]
 
     def test_main_page_correct_context_first_page(self):
-        for reverse_name in self.templates_pages_names:
+        for reverse_name in self.TEMPLATES_PAGES_NAMES:
             with self.subTest(reverse_name=reverse_name):
                 response = self.authorized_test_author.get(reverse_name)
                 self.assertEqual(
@@ -100,7 +107,7 @@ class PaginatorTests(TestCase):
                 )
 
     def test_home_page_correct_context_second_page(self):
-        for reverse_name in self.templates_pages_names:
+        for reverse_name in self.TEMPLATES_PAGES_NAMES:
             with self.subTest(reverse_name=reverse_name):
                 response = self.authorized_test_author.get(
                     reverse_name
@@ -118,19 +125,31 @@ class ContextPagesTests(TestCase):
         super().setUpClass()
         cls.USER = User.objects.create_user(username='test_author')
         cls.GROUP = Group.objects.create(
-            title='Тестовая группа',
-            slug='test_slug',
-            description='Тестовое описание',
+            title=TITLE_FOR_TEST,
+            slug=SLUG_FOR_TEST,
+            description=DESCRIPTION_FOR_TEST,
         )
         cls.POST = Post.objects.create(
-            text='Тестовый текст',
+            text=TEXT_FOR_TEST,
             author=cls.USER,
             group=cls.GROUP,
         )
+        cls.PAGES_NAMES = [
+            reverse('posts:main_page'),
+            reverse(
+                'posts:group_list',
+                kwargs={'slug': f'{cls.GROUP.slug}'}
+            ),
+            reverse(
+                'posts:profile',
+                kwargs={'username': f'{cls.USER.username}'}
+            ),
+        ]
 
     def setUp(self):
         self.authorized_test_author = Client()
         self.authorized_test_author.force_login(self.USER)
+        cache.clear()
 
     def test_context_index(self):
         response = self.authorized_test_author.get(
@@ -207,18 +226,7 @@ class ContextPagesTests(TestCase):
         self.assertEqual(post_object.group.title, 'Тестовая группа')
 
     def test_exists_post_in_three_group(self):
-        pages_names = [
-            reverse('posts:main_page'),
-            reverse(
-                'posts:group_list',
-                kwargs={'slug': f'{self.GROUP.slug}'}
-            ),
-            reverse(
-                'posts:profile',
-                kwargs={'username': f'{self.USER.username}'}
-            ),
-        ]
-        for page in pages_names:
+        for page in self.PAGES_NAMES:
             with self.subTest(page=page):
                 response = self.authorized_test_author.get(page)
                 self.assertIn(
@@ -233,12 +241,12 @@ class FollowTests(TestCase):
         super().setUpClass()
         cls.USER = User.objects.create_user(username='test_author')
         cls.GROUP = Group.objects.create(
-            title='Тестовая группа',
-            slug='test_slug',
-            description='Тестовое описание',
+            title=TITLE_FOR_TEST,
+            slug=SLUG_FOR_TEST,
+            description=DESCRIPTION_FOR_TEST,
         )
         cls.POST = Post.objects.create(
-            text='Тестовый текст',
+            text=TEXT_FOR_TEST,
             author=cls.USER,
             group=cls.GROUP,
         )
@@ -250,6 +258,7 @@ class FollowTests(TestCase):
         self.second_client = User.objects.create_user(username='client2')
         self.authorized_client_2 = Client()
         self.authorized_client_2.force_login(self.second_client)
+        cache.clear()
 
     def test_follow_and_unfollow(self):
         follow_count_first = Follow.objects.count()
@@ -290,3 +299,122 @@ class FollowTests(TestCase):
         )
         post_obj_2 = response_2.context['page_obj']
         self.assertFalse(post_obj_2)
+
+
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
+class ContextTestsPicture(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        small_gif = (
+            b'\x47\x49\x46\x38\x39\x61\x02\x00'
+            b'\x01\x00\x80\x00\x00\x00\x00\x00'
+            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+            b'\x0A\x00\x3B'
+        )
+        uploaded = SimpleUploadedFile(
+            name='small.gif',
+            content=small_gif,
+            content_type='image/gif'
+        )
+        cls.USER = User.objects.create_user(username='test_author')
+        cls.GROUP = Group.objects.create(
+            title=TITLE_FOR_TEST,
+            slug=SLUG_FOR_TEST,
+            description=DESCRIPTION_FOR_TEST,
+        )
+        cls.POST = Post.objects.create(
+            text=TEXT_FOR_TEST,
+            author=cls.USER,
+            group=cls.GROUP,
+            image=uploaded,
+        )
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
+
+    def setUp(self):
+        self.authorized_test_author = Client()
+        self.authorized_test_author.force_login(self.USER)
+        cache.clear()
+
+    def test_main_page_context_picture(self):
+        response = self.authorized_test_author.get(
+            reverse('posts:main_page')
+        )
+        post_object = response.context['page_obj']
+        self.assertEqual(post_object[0].image, 'posts/small.gif')
+
+    def test_context_group_list(self):
+        response = self.authorized_test_author.get(
+            reverse('posts:group_list',
+                    kwargs={'slug': f'{self.GROUP.slug}'}
+                    )
+        )
+        group_object = response.context['page_obj']
+        self.assertEqual(group_object[0].image, 'posts/small.gif')
+
+    def test_profile_context_picture(self):
+        response = self.authorized_test_author.get(
+            reverse('posts:profile',
+                    kwargs={'username': f'{self.USER.username}'}
+                    )
+        )
+        post_object = response.context['page_obj']
+        self.assertEqual(post_object[0].image, 'posts/small.gif')
+        author_object = response.context['author']
+        self.assertEqual(author_object.username, 'test_author')
+
+    def test_context_post_detail(self):
+        response = self.authorized_test_author.get(
+            reverse('posts:post_detail',
+                    kwargs={'post_id': f'{self.POST.pk}'}
+                    )
+        )
+        post_object = response.context['post']
+        self.assertEqual(post_object.image, 'posts/small.gif')
+
+
+class CommentTests(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.USER = User.objects.create_user(username='test_author')
+        cls.GROUP = Group.objects.create(
+            title=TITLE_FOR_TEST,
+            slug=SLUG_FOR_TEST,
+            description=DESCRIPTION_FOR_TEST,
+        )
+        cls.POST = Post.objects.create(
+            text=TEXT_FOR_TEST,
+            author=cls.USER,
+            group=cls.GROUP,
+        )
+
+    def setUp(self):
+        self.authorized_test_author = Client()
+        self.authorized_test_author.force_login(self.USER)
+
+    def test_context_post_detail_comment(self):
+        form_data = {
+            'text': 'Тестовый комментарий',
+        }
+        self.authorized_test_author.post(
+            reverse(
+                'posts:add_comment',
+                kwargs={'post_id': f'{self.POST.pk}'}
+            ),
+            data=form_data,
+            follow=True
+        )
+        response = self.authorized_test_author.get(
+            reverse('posts:post_detail',
+                    kwargs={'post_id': f'{self.POST.pk}'}
+                    )
+        )
+        comment_object = response.context['comments']
+        self.assertEqual(comment_object[0].text, 'Тестовый комментарий')

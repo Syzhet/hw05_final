@@ -4,15 +4,19 @@ from http import HTTPStatus
 
 
 class AboutURLtests(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.URLS_PAGES = [
+            reverse('about:author'),
+            reverse('about:tech'),
+        ]
+
     def setUp(self):
         self.guest_client = Client()
 
     def test_about_urls(self):
-        urls_pages = [
-            reverse('about:author'),
-            reverse('about:tech'),
-        ]
-        for url in urls_pages:
+        for url in self.URLS_PAGES:
             with self.subTest(url=url):
                 response = self.guest_client.get(url)
                 self.assertEqual(
