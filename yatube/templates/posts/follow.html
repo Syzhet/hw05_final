@@ -1,9 +1,11 @@
 {% extends 'base.html' %}
+{% load cache %}
 {% load thumbnail %}
 {% block content %}
   {% include 'posts/includes/switcher.html' %}
   <div class="container">
-    <h1>Записи ваших любимых авторов</h1> 
+    <h1>Записи ваших любимых авторов</h1>
+    {% cache 20 index_page_follow page_obj.number %} 
       {% for post in page_obj %}
         <article>
           <ul>
@@ -24,6 +26,7 @@
         </article>
         {% if not forloop.last %}<hr>{% endif %}
       {% endfor %}
+    {% endcache %}
   </div> 
   {% include 'posts/includes/paginator.html' %}      
 {% endblock %}     

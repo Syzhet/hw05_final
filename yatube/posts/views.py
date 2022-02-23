@@ -29,9 +29,9 @@ def group_posts(request, slug):
 def profile(request, username):
     author = get_object_or_404(User, username=username)
     post_list = Post.objects.filter(author=author)
+    following = False
     if request.user.is_authenticated:
         following = Follow.objects.filter(user=request.user, author=author)
-    following = False
     context = dict(
         author=author,
         page_obj=pagination(request, post_list),
