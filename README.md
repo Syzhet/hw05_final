@@ -62,3 +62,6 @@ python manage.py runserver
 ```sh
 python manage.py test -v2
 ```
+
+## Адрес сайта
+http://alekseiionov.pythonanywhere.com/
